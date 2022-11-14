@@ -1,0 +1,388 @@
+######################################################################################################
+# © 2022 Amazon Web Services, Inc. or its affiliates. All Rights Reserved.
+# This AWS Content is provided subject to the terms of the AWS Customer Agreement available at
+# http://aws.amazon.com/agreement or other written agreement between Customer and either
+# Amazon Web Services, Inc. or Amazon Web Services EMEA SARL or both.
+######################################################################################################
+AWSTemplateFormatVersion: 2010-09-09
+
+Metadata: 
+  AWS::CloudFormation::Interface: 
+    ParameterGroups: 
+      - Label: 
+          default: "Enter VPC & Subnets CIDRs"
+        Parameters: 
+          - VPCName
+          - VPCCIDR
+          - ELBSubnet1aCIDR
+          - AppSubnet1aCIDR
+          - DataSubnet1aCIDR
+          - TGWSubnet1aCIDR
+          - ELBSubnet1bCIDR
+          - AppSubnet1bCIDR
+          - DataSubnet1bCIDR
+          - TGWSubnet1bCIDR
+          - ELBSubnet1cCIDR
+          - AppSubnet1cCIDR
+          - DataSubnet1cCIDR
+          - TGWSubnet1cCIDR
+
+Parameters:
+  VPCName:
+    Description: Name for the VPC
+    Type: String
+    Default: VPCwithTGWSubnets
+  VPCCIDR:
+    Description: CIDR Range for the VPC
+    Type: String
+    Default: 10.50.0.0/23
+  ELBSubnet1aCIDR:
+    Description: CIDR Range for ELBSubnet1a Subnet
+    Type: String
+    Default: 10.50.0.0/27
+  AppSubnet1aCIDR:
+    Description: CIDR Range for AppSubnet1a Subnet
+    Type: String
+    Default: 10.50.0.32/27
+  DataSubnet1aCIDR:
+    Description: CIDR Range for DataSubnet1a Subnet
+    Type: String
+    Default: 10.50.0.64/27
+  TGWSubnet1aCIDR:
+    Description: CIDR Range for TGWSubnet1a Subnet
+    Type: String
+    Default: 10.50.0.96/28
+  ELBSubnet1bCIDR:
+    Description: CIDR Range for ELBSubnet1b Subnet
+    Type: String
+    Default: 10.50.0.128/27
+  AppSubnet1bCIDR:
+    Description: CIDR Range for AppSubnet1b Subnet
+    Type: String
+    Default: 10.50.0.160/27
+  DataSubnet1bCIDR:
+    Description: CIDR Range for DataSubnet1b Subnet
+    Type: String
+    Default: 10.50.0.192/27
+  TGWSubnet1bCIDR:
+    Description: CIDR Range for TGWSubnet1b Subnet
+    Type: String
+    Default: 10.50.0.224/28
+  ELBSubnet1cCIDR:
+    Description: CIDR Range for ELBSubnet1c Subnet
+    Type: String
+    Default: 10.50.1.0/27
+  AppSubnet1cCIDR:
+    Description: CIDR Range for AppSubnet1c Subnet
+    Type: String
+    Default: 10.50.1.32/27
+  DataSubnet1cCIDR:
+    Description: CIDR Range for DataSubnet1c Subnet
+    Type: String
+    Default: 10.50.1.64/27
+  TGWSubnet1cCIDR:
+    Description: CIDR Range for TGWSubnet1c Subnet
+    Type: String
+    Default: 10.50.1.96/28
+  
+Resources:
+  VPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: !Ref VPCCIDR
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: "Name"
+          Value: !Sub ${VPCName}
+  igw:
+    Type: 'AWS::EC2::InternetGateway'
+    DependsOn: VPC
+    Properties:
+      Tags:
+        - Key: "Name"
+          Value: "igw"
+  AttachInternetGateway:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref igw
+  
+  ELBSubnet1a:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZoneId: "apse1-az1"
+      CidrBlock: !Ref ELBSubnet1aCIDR
+      Tags:
+        - Key: "Name"
+          Value: "ELBSubnet1a"
+  ELBSubnet1aRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: "Name"
+          Value: "ELBSubnet1aRouteTable"
+  ELBSubnet1aRoute1:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref ELBSubnet1aRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref igw
+    DependsOn:
+      - AttachInternetGateway
+  ELBSubnet1aRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref ELBSubnet1a
+      RouteTableId: !Ref ELBSubnet1aRouteTable
+  AppSubnet1a:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZoneId: "apse1-az1"
+      CidrBlock: !Ref AppSubnet1aCIDR
+      Tags:
+        - Key: "Name"
+          Value: "AppSubnet1a"
+  AppSubnet1aRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: "Name"
+          Value: "AppSubnet1aRouteTable"
+  AppSubnet1aRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref AppSubnet1a
+      RouteTableId: !Ref AppSubnet1aRouteTable
+  DataSubnet1a:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZoneId: "apse1-az1"
+      CidrBlock: !Ref DataSubnet1aCIDR
+      Tags:
+        - Key: "Name"
+          Value: "DataSubnet1a"
+  DataSubnet1aRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: "Name"
+          Value: "DataSubnet1aRouteTable"
+  DataSubnet1aRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref DataSubnet1a
+      RouteTableId: !Ref DataSubnet1aRouteTable
+  TGWSubnet1a:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZoneId: "apse1-az1"
+      CidrBlock: !Ref TGWSubnet1aCIDR
+      Tags:
+        - Key: "Name"
+          Value: "TGWSubnet1a"
+  TGWSubnet1aRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: "Name"
+          Value: "TGWSubnet1aRouteTable"
+  TGWSubnet1aRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref TGWSubnet1a
+      RouteTableId: !Ref TGWSubnet1aRouteTable
+
+  ELBSubnet1b:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZoneId: "apse1-az2"
+      CidrBlock: !Ref ELBSubnet1bCIDR
+      Tags:
+        - Key: "Name"
+          Value: "ELBSubnet1b"
+  ELBSubnet1bRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: "Name"
+          Value: "ELBSubnet1bRouteTable"
+  ELBSubnet1bRoute1:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref ELBSubnet1bRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref igw
+    DependsOn:
+      - AttachInternetGateway
+  ELBSubnet1bRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref ELBSubnet1b
+      RouteTableId: !Ref ELBSubnet1bRouteTable
+  AppSubnet1b:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZoneId: "apse1-az2"
+      CidrBlock: !Ref AppSubnet1bCIDR
+      Tags:
+        - Key: "Name"
+          Value: "AppSubnet1b"
+  AppSubnet1bRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: "Name"
+          Value: "AppSubnet1bRouteTable"
+  AppSubnet1bRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref AppSubnet1b
+      RouteTableId: !Ref AppSubnet1bRouteTable
+  DataSubnet1b:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZoneId: "apse1-az2"
+      CidrBlock: !Ref DataSubnet1bCIDR
+      Tags:
+        - Key: "Name"
+          Value: "DataSubnet1b"
+  DataSubnet1bRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: "Name"
+          Value: "DataSubnet1bRouteTable"
+  DataSubnet1bRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref DataSubnet1b
+      RouteTableId: !Ref DataSubnet1bRouteTable
+  TGWSubnet1b:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZoneId: "apse1-az2"
+      CidrBlock: !Ref TGWSubnet1bCIDR
+      Tags:
+        - Key: "Name"
+          Value: "TGWSubnet1b"
+  TGWSubnet1bRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: "Name"
+          Value: "TGWSubnet1bRouteTable"
+  TGWSubnet1bRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref TGWSubnet1b
+      RouteTableId: !Ref TGWSubnet1bRouteTable
+
+  ELBSubnet1c:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZoneId: "apse1-az3"
+      CidrBlock: !Ref ELBSubnet1cCIDR
+      Tags:
+        - Key: "Name"
+          Value: "ELBSubnet1c"
+  ELBSubnet1cRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: "Name"
+          Value: "ELBSubnet1cRouteTable"
+  ELBSubnet1cRoute1:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref ELBSubnet1cRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref igw
+    DependsOn:
+      - AttachInternetGateway
+  ELBSubnet1cRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref ELBSubnet1c
+      RouteTableId: !Ref ELBSubnet1cRouteTable
+  AppSubnet1c:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZoneId: "apse1-az3"
+      CidrBlock: !Ref AppSubnet1cCIDR
+      Tags:
+        - Key: "Name"
+          Value: "AppSubnet1c"
+  AppSubnet1cRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: "Name"
+          Value: "AppSubnet1cRouteTable"
+  AppSubnet1cRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref AppSubnet1c
+      RouteTableId: !Ref AppSubnet1cRouteTable
+  DataSubnet1c:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZoneId: "apse1-az3"
+      CidrBlock: !Ref DataSubnet1cCIDR
+      Tags:
+        - Key: "Name"
+          Value: "DataSubnet1c"
+  DataSubnet1cRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: "Name"
+          Value: "DataSubnet1cRouteTable"
+  DataSubnet1cRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref DataSubnet1c
+      RouteTableId: !Ref DataSubnet1cRouteTable
+  TGWSubnet1c:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZoneId: "apse1-az3"
+      CidrBlock: !Ref TGWSubnet1cCIDR
+      Tags:
+        - Key: "Name"
+          Value: "TGWSubnet1c"
+  TGWSubnet1cRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: "Name"
+          Value: "TGWSubnet1cRouteTable"
+  TGWSubnet1cRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref TGWSubnet1c
+      RouteTableId: !Ref TGWSubnet1cRouteTable
